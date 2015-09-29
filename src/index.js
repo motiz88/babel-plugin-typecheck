@@ -108,6 +108,7 @@ export default function build (babel: Object): Object {
    * Create guards for the typed arguments of the function.
    */
   function createArgumentGuards (node: Object): Array<Object|string> {
+    validateParameterList(node.params);
     return node.params.reduce(
       (guards, param) => {
         if (param.type === "AssignmentPattern" && param.left.typeAnnotation) {
@@ -593,5 +594,21 @@ export default function build (babel: Object): Object {
    */
   function identity (input: any): any {
     return input;
+  }
+
+
+  /**
+   * Throws a SyntaxError if an optional argument is followed by a typed non-optional argument.
+   */
+  function validateParameterList (params: Array<Object>): void {
+    let seenOptional = false;
+    params.forEach(param => {
+      const isOptional = param.type === "AssignmentPattern" || param.typeAnnotation && param.optional;
+      const isTyped = param.type === "AssignmentPattern" && param.left.typeAnnotation || param.typeAnnotation;
+      if (isOptional)
+        seenOptional = true;
+      else if (seenOptional && isTyped)
+        throw new SyntaxError(`Non-optional argument '${param.type === "AssignmentPattern" ? param.left.name : param.name}' cannot come after optional arguments`);
+    });
   }
 }
